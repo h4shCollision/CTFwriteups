@@ -1,13 +1,13 @@
-#CCLS-FRINGE
+# CCLS-FRINGE
 
-###Challenge Description
+### Challenge Description
 
 
 Ray said that the challenge "Leaf-Similar Trees" from last LeetCode Weekly was really same-fringe problem and wrote it in the form of coroutine which he learned from a Stanford friend. Can you decrypt the cache file dumped from a language server without reading the source code? The flag is not in the form of rwctf{} because special characters cannot be used. 
 
 Downloads: [ccls-fringe.tar.xz](cache.json)
 
-###Solution
+### Solution
 
 ###### Reading the binary
 
@@ -17,7 +17,7 @@ To get something human-readable out of the cache file, we cloned the ccls repo a
 
 We formatted the json output and got [cache.json] (cache.json).
 
-######Reconstructing the source
+###### Reconstructing the source
 
 At this point we assumed we had to reconstuct the source to get the flag. 
 
