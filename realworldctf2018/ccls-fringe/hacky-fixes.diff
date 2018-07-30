@@ -1,0 +1,179 @@
+diff --git a/src/main.cc b/src/main.cc
+index 63c5148..049c679 100644
+--- a/src/main.cc
++++ b/src/main.cc
+@@ -17,11 +17,13 @@ using namespace llvm::cl;
+ 
+ #include <rapidjson/error/en.h>
+ 
+-#include <stdio.h>
++//#include <stdio.h>
+ #include <stdlib.h>
+ #include <string>
+ #include <unordered_map>
+ #include <vector>
++#include <optional>
++#include <iostream>
+ 
+ std::string g_init_options;
+ 
+@@ -43,78 +45,11 @@ void CloseLog() {
+ }  // namespace
+ 
+ int main(int argc, char** argv) {
+-  TraceMe();
+-  sys::PrintStackTraceOnErrorSignal(argv[0]);
+-
+-  ParseCommandLineOptions(argc, argv,
+-                          "C/C++/Objective-C language server\n\n"
+-                          "See more on https://github.com/MaskRay/ccls/wiki");
+-
+-  if (opt_help) {
+-    PrintHelpMessage();
+-    return 0;
+-  }
+-
+-  pipeline::Init();
+-  const char *env = getenv("CCLS_CRASH_RECOVERY");
+-  if (!env || strcmp(env, "0") != 0)
+-    CrashRecoveryContext::Enable();
+-
+-  bool language_server = true;
+-
+-  if (opt_log_file.size() || opt_log_file_append.size()) {
+-    ccls::log::file = opt_log_file.size()
+-                          ? fopen(opt_log_file.c_str(), "wb")
+-                          : fopen(opt_log_file_append.c_str(), "ab");
+-    if (!ccls::log::file) {
+-      fprintf(
+-          stderr, "failed to open %s\n",
+-          (opt_log_file.size() ? opt_log_file : opt_log_file_append).c_str());
+-      return 2;
+-    }
+-    setbuf(ccls::log::file, NULL);
+-    atexit(CloseLog);
+-  }
+-
+-  if (opt_test_index != "!") {
+-    language_server = false;
+-    if (!RunIndexTests(opt_test_index, sys::Process::StandardInIsUserInput()))
+-      return 1;
+-  }
+-
+-  if (language_server) {
+-    if (!opt_init.empty()) {
+-      // We check syntax error here but override client-side
+-      // initializationOptions in messages/initialize.cc
+-      g_init_options = opt_init;
+-      rapidjson::Document reader;
+-      rapidjson::ParseResult ok = reader.Parse(g_init_options.c_str());
+-      if (!ok) {
+-        fprintf(stderr, "Failed to parse --init as JSON: %s (%zd)\n",
+-                rapidjson::GetParseError_En(ok.Code()), ok.Offset());
+-        return 1;
+-      }
+-      JsonReader json_reader{&reader};
+-      try {
+-        Config config;
+-        Reflect(json_reader, config);
+-      } catch (std::invalid_argument& e) {
+-        fprintf(stderr, "Failed to parse --init %s, expected %s\n",
+-                static_cast<JsonReader&>(json_reader).GetPath().c_str(),
+-                e.what());
+-        return 1;
+-      }
+-    }
+-
+-    sys::ChangeStdinToBinary();
+-    sys::ChangeStdoutToBinary();
+-    // The thread that reads from stdin and dispatchs commands to the main thread.
+-    pipeline::LaunchStdin();
+-    // The thread that writes responses from the main thread to stdout.
+-    pipeline::LaunchStdout();
+-    // Main thread which also spawns indexer threads upon the "initialize" request.
+-    pipeline::MainLoop();
+-  }
++  //printf("aksjdhfkjasdh\n");
++    std::unique_ptr<IndexFile> result =pipeline::RawCacheLoad("fringe.cc");
+ 
++    std::string actual = result->ToString();
++    std::cout << actual << std::endl;
++	//printf("asdfas\n");
+   return 0;
+ }
+diff --git a/src/pipeline.cc b/src/pipeline.cc
+index bbced1d..32e8d74 100644
+--- a/src/pipeline.cc
++++ b/src/pipeline.cc
+@@ -57,7 +57,6 @@ void DiagnosticsPublisher::Publish(WorkingFiles* working_files,
+ }
+ 
+ namespace ccls::pipeline {
+-namespace {
+ 
+ struct Index_Request {
+   std::string path;
+@@ -124,14 +123,14 @@ std::string GetCachePath(const std::string& source_file) {
+ 
+ std::unique_ptr<IndexFile> RawCacheLoad(
+     const std::string& path) {
+-  std::string cache_path = GetCachePath(path);
++  std::string cache_path = "/home/leaf/realworld/home/.ccls-cache/@home@flag@/fringe.cc.blob" ;//= GetCachePath(path);
+   std::optional<std::string> file_content = ReadContent(cache_path);
+   std::optional<std::string> serialized_indexed_content =
+-      ReadContent(AppendSerializationFormat(cache_path));
++      ReadContent(cache_path);
+   if (!file_content || !serialized_indexed_content)
+     return nullptr;
+ 
+-  return ccls::Deserialize(g_config->cacheFormat, path,
++  return ccls::Deserialize(SerializeFormat::Binary, path,
+                            *serialized_indexed_content, *file_content,
+                            IndexFile::kMajorVersion);
+ }
+@@ -274,7 +273,7 @@ bool Indexer_Parse(DiagnosticsPublisher* diag_pub,
+   return true;
+ }
+ 
+-}  // namespace
++  // namespace
+ 
+ void Init() {
+   main_waiter = new MultiQueueWaiter;
+diff --git a/src/pipeline.hh b/src/pipeline.hh
+index d3c7dcf..707c837 100644
+--- a/src/pipeline.hh
++++ b/src/pipeline.hh
+@@ -27,7 +27,8 @@ class DiagnosticsPublisher {
+ };
+ 
+ namespace ccls::pipeline {
+-
++std::unique_ptr<IndexFile> RawCacheLoad(
++    const std::string& path);
+ void Init();
+ void LaunchStdin();
+ void LaunchStdout();
+diff --git a/src/serializer.cc b/src/serializer.cc
+index ba6086f..746721e 100644
+--- a/src/serializer.cc
++++ b/src/serializer.cc
+@@ -326,7 +326,7 @@ bool ReflectMemberStart(Writer& visitor, IndexFile& value) {
+ template <typename TVisitor>
+ void Reflect(TVisitor& visitor, IndexFile& value) {
+   REFLECT_MEMBER_START();
+-  if (!gTestOutputMode) {
++  if (!gTestOutputMode || true) {
+     REFLECT_MEMBER(last_write_time);
+     REFLECT_MEMBER(language);
+     REFLECT_MEMBER(lid2path);
+@@ -425,7 +425,8 @@ std::unique_ptr<IndexFile> Deserialize(
+         Reflect(reader, minor);
+         if (major != IndexFile::kMajorVersion ||
+             minor != IndexFile::kMinorVersion)
+-          throw std::invalid_argument("Invalid version");
++          //throw std::invalid_argument("Invalid version");
++			;
+         file = std::make_unique<IndexFile>(sys::fs::UniqueID(0, 0), path,
+                                            file_content);
+         Reflect(reader, *file);
