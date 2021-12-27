@@ -48,7 +48,8 @@ Nmap done: 1 IP address (1 host up) scanned in 37.24 seconds
 Most interesting ports here are port 80 for http and port 3306 for mysql.
 ## Web
 Heading to the website, we see the following page.
-![[Pasted image 20211227045656.png]]
+
+![screenshot](Pasted%20image%2020211227045656.png)
 
 Most of the website is not very intersting, however, we do find an interesting link: `job.empline.thm/careers`. 
 
@@ -59,10 +60,10 @@ We add the following line to `/etc/hosts`
 
 and head to `job.empline.thm/careers`
 
-![[Pasted image 20211227050127.png]]
+![screenshot](Pasted%20image%2020211227050127.png)
 
 Digging around `job.empline.thm`, we see it's running version 0.9.4 of [opencats](https://www.opencats.org/).
-![[Pasted image 20211227050421.png]]
+![screenshot](Pasted%20image%2020211227050421.png)
 
 After some googling, we find there's potentially an xxe vulnerability([official notice](https://www.opencats.org/news/2019/july/), [more reading](https://doddsecurity.com/312/xml-external-entity-injection-xxe-in-opencats-applicant-tracking-system/)). 
 
@@ -106,7 +107,7 @@ After some quick search in their github repo, we find these are md5 hashes with 
 
 Using a rainbow table online, we can crack the hash to find the password for the user `george`. 
 
-![[Pasted image 20211227053840.png]]
+![screenshot](Pasted%20image%2020211227053840.png)
 
 # PrivEsc
 After ssh-ing into the the machine as `george`, we find the `user.txt` file under `/home/george`.
